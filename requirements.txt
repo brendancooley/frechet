@@ -4,17 +4,13 @@
 #
 #    pip-compile
 #
-census==0.8.19
+numpy==1.22.4
+    # via pandas
+pandas==1.4.2
     # via frechet (setup.py)
-certifi==2022.5.18.1
-    # via requests
-charset-normalizer==2.0.12
-    # via requests
-h3==3.7.4
-    # via frechet (setup.py)
-idna==3.3
-    # via requests
-requests==2.27.1
-    # via census
-urllib3==1.26.9
-    # via requests
+python-dateutil==2.8.2
+    # via pandas
+pytz==2022.1
+    # via pandas
+six==1.16.0
+    # via python-dateutil
