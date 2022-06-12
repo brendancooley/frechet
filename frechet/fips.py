@@ -13,14 +13,24 @@ class StateNotFound(Exception):
 
 
 @lru_cache()
-def load_states():
+def _load_states() -> pd.DataFrame:
     return pd.read_csv(STATES, delimiter="|", dtype={"STATE": str})
 
 
-def build_state(mode: QUERY_MODE, name: str):
+@lru_cache()
+def _load_counties(st_fips: str, st_abbr: str) -> pd.DataFrame:
+    co_df = pd.read_csv(
+        f"https://www2.census.gov/geo/docs/reference/codes/files/st{st_fips}_{st_abbr.lower()}_cou.txt",
+        header=None
+    )
+    co_df.columns = ["state_abbr", "state_fips", "co_fips", "co_name", "co_type"]
+    return co_df
+
+
+def _build_state(mode: QUERY_MODE, name: str):
     if type(name) != str:
         raise ValueError(f"Argument {mode} must be of type `str`.")
-    st_df = load_states()
+    st_df = _load_states()
     col = "STATE_NAME" if mode == "name" else "STUSAB" if mode == "abbr" else "STATE"
     st_row = st_df.loc[st_df[col] == name]
     if len(st_row) == 0:
@@ -38,18 +48,81 @@ def build_state(mode: QUERY_MODE, name: str):
 
 @dataclass
 class State:
+    """
+    A U.S. State with it's fips code, abbreviation, and name stored as attributes.
+
+    Args:
+        fips (str): the state's FIPS code
+        abbr (str): the state's abbreviation
+        name (str): the state's name
+
+    """
     fips: str
     abbr: str
     name: str
 
     @classmethod
-    def from_name(cls, name: str):
-        return build_state(mode="name", name=name)
+    def from_name(cls, name: str) -> "State":
+        """
+        Args:
+            name (str): the state's name, e.g. "Alabama"
+
+        Returns:
+            State
+        """
+        return _build_state(mode="name", name=name)
 
     @classmethod
-    def from_abbr(cls, abbr: str):
-        return build_state(mode="abbr", name=abbr)
+    def from_abbr(cls, abbr: str) -> "State":
+        """
+
+        Args:
+            abbr: the state's abbreviation, e.g. "AL"
+
+        Returns:
+            State
+        """
+        return _build_state(mode="abbr", name=abbr)
 
     @classmethod
-    def from_fips(cls, fips: str):
-        return build_state(mode="fips", name=fips)
+    def from_fips(cls, fips: str) -> "State":
+        """
+
+        Args:
+            abbr: the state's fips code, e.g. "01"
+
+        Returns:
+            State
+        """
+        return _build_state(mode="fips", name=fips)
+
+    @property
+    def county_df(self) -> pd.DataFrame:
+        """
+
+        Returns:
+            pd.DataFrame: a table storing information (fips codes and names) of counties within the state.
+
+        """
+        co_df = _load_counties(st_fips=self.fips, st_abbr=self.abbr)
+        return co_df
+
+    @property
+    def counties(self) -> List:
+        """
+
+        Returns:
+            List: a list of county names within the state
+
+        """
+        return self.county_df["co_name"].tolist()
+
+
+class County:
+    fips: str
+    name: str
+    state: State
+
+    @classmethod
+    def from_state_abbr_name(cls, state_abbr: str, name: str):
+        state = State.from_abbr(state_abbr)
