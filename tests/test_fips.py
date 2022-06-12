@@ -1,4 +1,6 @@
-from frechet.fips import State, QUERY_MODE, StateNotFound
+import pytest
+
+from frechet.fips import State, QUERY_MODE, StateNotFound, County, MultipleCountiesError, CountyNotFound
 
 
 def _test_state_init(mode: QUERY_MODE, query: str):
@@ -17,7 +19,18 @@ def test_state_init():
     state_name = _test_state_init(mode="name", query="Alabama")
     state_fips = _test_state_init(mode="fips", query="01")
     assert state_abbr.fips == state_name.fips == state_fips.fips == "01"
-    try:
-        state_invalid = _test_state_init(mode="name", query="China")
-    except StateNotFound:
-        pass
+    with pytest.raises(StateNotFound):
+        _test_state_init(mode="name", query="China")
+
+
+def _test_county_init(state_abbr: str, name: str):
+    return County.from_state_abbr_name(state_abbr=state_abbr, name=name)
+
+
+def test_county_init():
+    county = _test_county_init(state_abbr="MD", name="Montgomery")
+    assert county.name == "Montgomery County"
+    with pytest.raises(MultipleCountiesError):
+        _test_county_init(state_abbr="MD", name="Ba")
+    with pytest.raises(CountyNotFound):
+        _test_county_init(state_abbr="MD", name="Loudoun")
