@@ -12,6 +12,14 @@ class StateNotFound(Exception):
     ...
 
 
+class CountyNotFound(Exception):
+    ...
+
+
+class MultipleCountiesError(Exception):
+    ...
+
+
 @lru_cache()
 def _load_states() -> pd.DataFrame:
     return pd.read_csv(STATES, delimiter="|", dtype={"STATE": str})
@@ -42,7 +50,7 @@ def _build_state(mode: QUERY_MODE, name: str):
         return State(
             fips=st_srs.STATE,
             abbr=st_srs.STUSAB,
-            name=name
+            name=st_srs.STATE_NAME
         )
 
 
@@ -118,11 +126,42 @@ class State:
         return self.county_df["co_name"].tolist()
 
 
+@dataclass
 class County:
+    """
+    A U.S. County with it's fips code, name, and parent `State` stored as attributes.
+
+    Args:
+        fips (str): the county's FIPS code
+        name (str): the county's name
+        state (State): the state in which the county resides
+
+    """
     fips: str
     name: str
     state: State
 
     @classmethod
-    def from_state_abbr_name(cls, state_abbr: str, name: str):
+    def from_state_abbr_name(cls, state_abbr: str, name: str) -> "County":
+        """
+
+        Args:
+            state_abbr: two letter abbreviation of state in which county resides (e.g. "MD")
+            name: name, or beginning of name, of county (e.g. Montgomery)
+
+        Returns:
+            County
+        """
         state = State.from_abbr(state_abbr)
+        matches = [x for x in state.counties if x.lower().startswith(name.lower())]
+        if len(matches) > 1:
+            raise MultipleCountiesError(f"Multiple counties matching {name} found in {state.name}: {', '.join(matches)}")
+        elif len(matches) == 0:
+            raise CountyNotFound(f"County {name} not found in {state.name}.")
+        else:
+            co_srs = state.county_df.loc[state.county_df["co_name"].str.startswith(name)].iloc[0]
+            return cls(
+                fips=co_srs.co_fips,
+                name=co_srs.co_name,
+                state=state,
+            )
