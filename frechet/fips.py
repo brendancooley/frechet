@@ -85,7 +85,7 @@ class State:
         """
 
         Args:
-            abbr: the state's abbreviation, e.g. "AL"
+            abbr (str): the state's abbreviation, e.g. "AL"
 
         Returns:
             State
@@ -97,7 +97,7 @@ class State:
         """
 
         Args:
-            abbr: the state's fips code, e.g. "01"
+            abbr (str): the state's fips code, e.g. "01"
 
         Returns:
             State
