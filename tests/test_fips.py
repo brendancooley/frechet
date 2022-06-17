@@ -1,3 +1,7 @@
+"""
+tests for initializing `State` and `County` objects and inferring their names, fips codes, and abbreviations
+"""
+
 import pytest
 
 from frechet.fips import State, QUERY_MODE, StateNotFound, County, MultipleCountiesError, CountyNotFound

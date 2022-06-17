@@ -2,8 +2,10 @@ from functools import lru_cache
 from typing import *
 from dataclasses import dataclass
 import pandas as pd
+import geopandas as gpd
 
 from frechet.url import STATES
+from frechet.tiger import GEOM, load_shp
 
 QUERY_MODE = Literal["name", "abbr", "fips"]
 
@@ -29,7 +31,8 @@ def _load_states() -> pd.DataFrame:
 def _load_counties(st_fips: str, st_abbr: str) -> pd.DataFrame:
     co_df = pd.read_csv(
         f"https://www2.census.gov/geo/docs/reference/codes/files/st{st_fips}_{st_abbr.lower()}_cou.txt",
-        header=None
+        header=None,
+        dtype=str
     )
     co_df.columns = ["state_abbr", "state_fips", "co_fips", "co_name", "co_type"]
     return co_df
@@ -125,6 +128,20 @@ class State:
         """
         return self.county_df["co_name"].tolist()
 
+    def cb(self, geom: GEOM, year: int, cache: bool = False) -> gpd.GeoDataFrame:
+        """
+        returns the state's cartographic boundary files for the geom-year
+
+        Args:
+            geom (frechet.tiger.GEOM): a set of geographies to return
+            year (int): the year for which to return the geographies
+            cache (bool): if True, cache the result
+
+        Returns:
+            geopandas.GeoDataFrame: A cartographic boundary geo data frame for the state
+        """
+        return load_shp(st_fips=self.fips, geom=geom, year=year, cache=cache)
+
 
 @dataclass
 class County:
@@ -165,3 +182,18 @@ class County:
                 name=co_srs.co_name,
                 state=state,
             )
+
+    def cb(self, geom: GEOM, year: int, cache: bool = False) -> gpd.GeoDataFrame:
+        """
+        returns the county's cartographic boundary files for the geom-year
+
+        Args:
+            geom (frechet.tiger.GEOM): a set of geographies to return
+            year (int): the year for which to return the geographies
+            cache (bool): if True, cache the result
+
+        Returns:
+            geopandas.GeoDataFrame: A cartographic boundary geo data frame for the state
+        """
+        st_gdf = self.state.cb(geom=geom, year=year)
+        return st_gdf.loc[st_gdf["COUNTYFP"] == self.fips]

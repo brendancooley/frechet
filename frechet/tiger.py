@@ -11,11 +11,11 @@ from frechet.util import unzip_to_tmp, cache_result_dir, RESULT_DIR
 from frechet.settings import FRECHET_CACHE_DIR
 
 
-GEOM = Literal['tract', 'block_groups', 'counties']
+GEOM = Literal['tracts', 'block_groups', 'county_sub']
 GEOM_MAP = {
     "tracts": "tract",
     "block_groups": "bg",
-    "counties": "cousub"
+    "county_sub": "cousub"
 }
 
 
@@ -30,7 +30,7 @@ def load_shp(year: int, st_fips: str, geom: GEOM, cache: bool = False):
     Args:
         year (int): year of boundary file
         st_fips (str): state fips code for boundary file
-        geom: type of geometries to request, tracts, block_groups, or counties
+        geom (frechet.tiger.GEOM): type of geometries to request, tracts, block_groups, or county subdivisions
         cache (bool): If True, save results to FRECHET_CACHE_DIR
 
     Returns:
