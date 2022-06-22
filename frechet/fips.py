@@ -128,7 +128,7 @@ class State:
         """
         return self.county_df["co_name"].tolist()
 
-    def cb(self, geom: GEOM, year: int, cache: bool = False) -> gpd.GeoDataFrame:
+    def shp(self, geom: GEOM, year: int, cache: bool = False, cb: bool = False) -> gpd.GeoDataFrame:
         """
         returns the state's cartographic boundary files for the geom-year
 
@@ -136,11 +136,12 @@ class State:
             geom (frechet.tiger.GEOM): a set of geographies to return
             year (int): the year for which to return the geographies
             cache (bool): if True, cache the result
+            cb (bool): if True, return the cartographic boundary (less detailed, more efficient) shps
 
         Returns:
             geopandas.GeoDataFrame: A cartographic boundary geo data frame for the state
         """
-        return load_shp(st_fips=self.fips, geom=geom, year=year, cache=cache)
+        return load_shp(st_fips=self.fips, geom=geom, year=year, cache=cache, cb=cb)
 
 
 @dataclass
@@ -183,7 +184,7 @@ class County:
                 state=state,
             )
 
-    def cb(self, geom: GEOM, year: int, cache: bool = False) -> gpd.GeoDataFrame:
+    def shp(self, geom: GEOM, year: int, cache: bool = False, cb: bool = False) -> gpd.GeoDataFrame:
         """
         returns the county's cartographic boundary files for the geom-year
 
@@ -191,9 +192,10 @@ class County:
             geom (frechet.tiger.GEOM): a set of geographies to return
             year (int): the year for which to return the geographies
             cache (bool): if True, cache the result
+            cb (bool): if True, return the cartographic boundary (less detailed, more efficient) shps
 
         Returns:
             geopandas.GeoDataFrame: A cartographic boundary geo data frame for the state
         """
-        st_gdf = self.state.cb(geom=geom, year=year)
+        st_gdf = self.state.shp(geom=geom, year=year, cache=cache, cb=cb)
         return st_gdf.loc[st_gdf["COUNTYFP"] == self.fips]
