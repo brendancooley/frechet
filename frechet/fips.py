@@ -6,6 +6,8 @@ import geopandas as gpd
 
 from frechet.url import STATES
 from frechet.tiger import GEOM, load_shp
+from frechet.census import CENSUS_DS, _validate_ds
+from frechet.settings import CENSUS_API_KEY
 
 QUERY_MODE = Literal["name", "abbr", "fips"]
 
@@ -32,7 +34,7 @@ def _load_counties(st_fips: str, st_abbr: str) -> pd.DataFrame:
     co_df = pd.read_csv(
         f"https://www2.census.gov/geo/docs/reference/codes/files/st{st_fips}_{st_abbr.lower()}_cou.txt",
         header=None,
-        dtype=str
+        dtype=str,
     )
     co_df.columns = ["state_abbr", "state_fips", "co_fips", "co_name", "co_type"]
     return co_df
@@ -45,16 +47,36 @@ def _build_state(mode: QUERY_MODE, name: str):
     col = "STATE_NAME" if mode == "name" else "STUSAB" if mode == "abbr" else "STATE"
     st_row = st_df.loc[st_df[col] == name]
     if len(st_row) == 0:
-        raise StateNotFound(f"State with {mode} {name} not found. Check {STATES} for available states.")
+        raise StateNotFound(
+            f"State with {mode} {name} not found. Check {STATES} for available states."
+        )
     elif len(st_row) > 1:
         raise ValueError(f"Multiple states with {mode} {name} found.")
     else:
         st_srs = st_row.iloc[0]
-        return State(
-            fips=st_srs.STATE,
-            abbr=st_srs.STUSAB,
-            name=st_srs.STATE_NAME
+        return State(fips=st_srs.STATE, abbr=st_srs.STUSAB, name=st_srs.STATE_NAME)
+
+
+def _census(
+    ds: CENSUS_DS,
+    sub_ds: str,
+    geom: GEOM,
+    year: int,
+    vars: List[str],
+    census_api_key: Optional[str] = None,
+) -> pd.DataFrame:
+    if census_api_key is None and CENSUS_API_KEY is None:
+        raise LookupError(
+            "No census api key found. Please add to your .env or pass directly via `census_api_key`."
         )
+    elif census_api_key is None:
+        census_api_key = CENSUS_API_KEY
+    _validate_ds(ds=ds, sub_ds=sub_ds)
+
+    # validate geom
+    # validate year
+    # validate vars
+    pass
 
 
 @dataclass
@@ -68,6 +90,7 @@ class State:
         name (str): the state's name
 
     """
+
     fips: str
     abbr: str
     name: str
@@ -128,7 +151,9 @@ class State:
         """
         return self.county_df["co_name"].tolist()
 
-    def shp(self, geom: GEOM, year: int, cache: bool = False, cb: bool = False) -> gpd.GeoDataFrame:
+    def shp(
+        self, geom: GEOM, year: int, cache: bool = False, cb: bool = False
+    ) -> gpd.GeoDataFrame:
         """
         returns the state's cartographic boundary files for the geom-year
 
@@ -155,6 +180,7 @@ class County:
         state (State): the state in which the county resides
 
     """
+
     fips: str
     name: str
     state: State
@@ -173,18 +199,24 @@ class County:
         state = State.from_abbr(state_abbr)
         matches = [x for x in state.counties if x.lower().startswith(name.lower())]
         if len(matches) > 1:
-            raise MultipleCountiesError(f"Multiple counties matching {name} found in {state.name}: {', '.join(matches)}")
+            raise MultipleCountiesError(
+                f"Multiple counties matching {name} found in {state.name}: {', '.join(matches)}"
+            )
         elif len(matches) == 0:
             raise CountyNotFound(f"County {name} not found in {state.name}.")
         else:
-            co_srs = state.county_df.loc[state.county_df["co_name"].str.startswith(name)].iloc[0]
+            co_srs = state.county_df.loc[
+                state.county_df["co_name"].str.startswith(name)
+            ].iloc[0]
             return cls(
                 fips=co_srs.co_fips,
                 name=co_srs.co_name,
                 state=state,
             )
 
-    def shp(self, geom: GEOM, year: int, cache: bool = False, cb: bool = False) -> gpd.GeoDataFrame:
+    def shp(
+        self, geom: GEOM, year: int, cache: bool = False, cb: bool = False
+    ) -> gpd.GeoDataFrame:
         """
         returns the county's cartographic boundary files for the geom-year
 
