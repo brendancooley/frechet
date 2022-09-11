@@ -2,20 +2,28 @@ import requests
 
 import pandas as pd
 
+from frechet.geom import GEOM, PARENT
+
 from typing import *
 
 # NOTE: use this for enums, keep census queries tied to the fips geography constructs
 
 CENSUS_DS = Literal["dec"]
-
-CENSUS_DS_MAP: Dict[str, List[str]] = { # TODO availability years in here too?
+CENSUS_DS_MAP: Dict[str, List[str]] = {  # TODO availability years in here too?
     "dec": [  # https://www.census.gov/data/developers/data-sets/decennial-census.html
         "pl",  # https://api.census.gov/data/2020/dec/pl.html
         "pes",  # https://api.census.gov/data/2020/dec/pes.html
     ]
 }
+GEOM_MAP: Dict[GEOM, str] = {
+    "tracts": "140",
+    "block_groups": "150",
+    "county_sub": "060",
+    "blocks": "100"
+}
 
-def _validate_ds(ds: CENSUS_DS, sub_ds: str) -> bool:
+
+def validate_ds(ds: CENSUS_DS, sub_ds: str) -> bool:
     if ds not in CENSUS_DS_MAP.keys():
         raise ValueError(f"Unknown dataset: {ds}")
     if sub_ds not in CENSUS_DS_MAP[ds]:
@@ -23,18 +31,55 @@ def _validate_ds(ds: CENSUS_DS, sub_ds: str) -> bool:
     else:
         return True
 
-def _validate_vars(ds: CENSUS_DS, sub_ds: str, year: int, vars: List[str]) -> pd.DataFrame:
-    if _validate_ds():
-        reqst = requests.get("https://api.census.gov/data/{year}/{ds}/{sub_ds}/variables.json")
+
+def validate_vars(
+    ds: CENSUS_DS, sub_ds: str, year: int, vars: List[str]
+) -> pd.DataFrame:
+    if validate_ds():
+        reqst = requests.get(
+            "https://api.census.gov/data/{year}/{ds}/{sub_ds}/variables.json"
+        )
         if reqst.status_code == 404:
-            raise LookupError(f"No variables found for dataset {ds}, sub dataset {sub_ds} in year {year}. Check that year is valid at https://api.census.gov/data.html.")
-        df = pd.DataFrame.from_dict(reqst.content['variables'], orient='index')[["label", "concept"]].sort_index()
+            raise LookupError(
+                f"No variables found for dataset {ds}, sub dataset {sub_ds} in year {year}. Check that year is valid at https://api.census.gov/data.html."
+            )
+        df = pd.DataFrame.from_dict(reqst.content["variables"], orient="index")[
+            ["label", "concept"]
+        ].sort_index()
         df = df.loc[~df.index.isin(["for", "in", "ucgid"])]
-        df = df.loc[df['concept'].notna()]
+        df = df.loc[df["concept"].notna()]
         df = df.loc[df["label"] != "Geography"]
-        valid_vars = df.index.tolist()
-        if any(x not in valid_vars for x in vars):
-            # TODO collect invalids and send back
-            raise ValueError()
+        valid_opts = df.index.tolist()
+        invalid_vars = [x for x in vars if x not in valid_opts]
+        if len(invalid_vars) > 0:
+            raise ValueError(
+                f"The following vars were not found in valid variable list for {ds}-{sub_ds}-{year}: {' ,'.join(invalid_vars)}"
+            )
         else:
             return df
+
+
+def validate_geom(ds: CENSUS_DS, sub_ds: str, year: int, parent: PARENT, geom: GEOM) -> pd.DataFrame:
+    if validate_ds():
+        reqst = requests.get(
+            "https://api.census.gov/data/{year}/{ds}/{sub_ds}/geography.json"
+        )
+        if reqst.status_code == 404:
+            raise LookupError(
+                f"No variables found for dataset {ds}, sub dataset {sub_ds} in year {year}. Check that year is valid at https://api.census.gov/data.html."
+            )
+        df = pd.DataFrame.from_dict(reqst.content["fips"])
+        if GEOM_MAP[geom] not in df["geoLevelDisplay"].tolist():  # check that geom is supported globally
+            raise ValueError(f"Geom {geom} not supported for {ds}-{sub_ds}-{year}")
+        df_geom = df.loc[df["geoLevelDisplay"] == geom].squeeze()
+        if df_geom.isna()['optionalWithWCFor']:
+            req = df_geom['requires']
+        else:
+            exempt = df_geom['optionalWithWCFor']
+            req = [x for x in df_geom['requires'] if x not in exempt]
+        provided = ['state', 'county'] if parent == 'county' else ['state']
+        if not all(x in provided for x in req):
+            raise ValueError(f"Geom {geom} not supported at parent level {parent} for {ds}-{sub_ds}-{year}. Required levels: {' ,'.join(req)}")
+        return df
+        
+        

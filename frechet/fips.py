@@ -5,8 +5,9 @@ import pandas as pd
 import geopandas as gpd
 
 from frechet.url import STATES
-from frechet.tiger import GEOM, load_shp
-from frechet.census import CENSUS_DS, _validate_ds
+from frechet.tiger import load_shp
+from frechet.geom import GEOM, PARENT
+from frechet.census import CENSUS_DS, validate_ds, validate_vars, validate_geom
 from frechet.settings import CENSUS_API_KEY
 
 QUERY_MODE = Literal["name", "abbr", "fips"]
@@ -63,6 +64,7 @@ def _census(
     geom: GEOM,
     year: int,
     vars: List[str],
+    parent: PARENT,
     census_api_key: Optional[str] = None,
 ) -> pd.DataFrame:
     if census_api_key is None and CENSUS_API_KEY is None:
@@ -71,12 +73,9 @@ def _census(
         )
     elif census_api_key is None:
         census_api_key = CENSUS_API_KEY
-    _validate_ds(ds=ds, sub_ds=sub_ds)
-
-    # validate geom
-    # validate year
-    # validate vars
-    pass
+    validate_ds(ds=ds, sub_ds=sub_ds)
+    validate_vars(ds=ds, sub_ds=sub_ds, year=year, vars=vars)
+    validate_geom(ds=ds, sub_ds=sub_ds, year=year, geom=geom, parent=parent)
 
 
 @dataclass

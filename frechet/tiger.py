@@ -6,19 +6,19 @@ import shutil
 
 import geopandas as gpd
 
+from frechet.geom import GEOM
 from frechet.url import TIGER_BASE
 from frechet.util import unzip_to_tmp, cache_result_dir, RESULT_DIR
 from frechet.settings import FRECHET_CACHE_DIR
 
 
-GEOM = Literal['tracts', 'block_groups', 'county_sub', "blocks"]
-GEOM_MAP = {
+GEOM_MAP: Dict[GEOM, str] = {
     "tracts": "tract",
     "block_groups": "bg",
     "county_sub": "cousub",
     "blocks": "tabblock"
 }
-CB_GEOMS = ["tracts", "block_groups", "county_sub"]  # geoms for which cartographic boundary files are available
+CB_GEOM = Literal["tracts", "block_groups", "county_sub"]  # geoms for which cartographic boundary files are available
 
 
 class ShpNotFound(Exception):
@@ -93,7 +93,7 @@ def _validate_cb(geom: GEOM, cb: bool):
     if not cb:
         return True
     else:
-        if geom in CB_GEOMS:
+        if geom in get_args(CB_GEOM):
             return True
         else:
             raise CBUnavailable(f"Cartographic boundary files unavailable for geom {geom}")
