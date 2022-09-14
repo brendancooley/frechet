@@ -15,13 +15,38 @@ CENSUS_DS_MAP: Dict[str, List[str]] = {  # TODO availability years in here too?
         "pes",  # https://api.census.gov/data/2020/dec/pes.html
     ]
 }
-GEOM_MAP: Dict[GEOM, str] = {
+GEOM_NAME_MAP: Dict[GEOM, str] = {
+    "tracts": "tract",
+    "block_groups": "block group",
+    "county_sub": "county subdivision",
+    "blocks": "block"
+}
+GEOM_ID_MAP: Dict[GEOM, str] = {
     "tracts": "140",
     "block_groups": "150",
     "county_sub": "060",
     "blocks": "100"
 }
 
+
+def construct_request_url(
+    ds: CENSUS_DS,
+    sub_ds: str,
+    geom: GEOM,
+    year: int,
+    vars: List[str],
+    st_fips: str,
+    census_api_key: str,
+    co_fips: Optional[str] = None,
+):
+    address_base = f"https://api.census.gov/data/{year}/{ds}/{sub_ds}?"
+    vars_str = f"NAME,{','.join(vars)}"
+    if co_fips is None:
+        st_co_str = f"in=state:{st_fips}"
+    else:
+        st_co_str = f"in=state:{st_fips} county:{co_fips}"
+    key_str = f"key={census_api_key}"
+    return f"{address_base}get={vars_str}&for={GEOM_NAME_MAP[geom]}*&in={st_co_str}&{key_str}"
 
 def validate_ds(ds: CENSUS_DS, sub_ds: str) -> bool:
     if ds not in CENSUS_DS_MAP.keys():
@@ -69,7 +94,7 @@ def validate_geom(ds: CENSUS_DS, sub_ds: str, year: int, parent: PARENT, geom: G
                 f"No variables found for dataset {ds}, sub dataset {sub_ds} in year {year}. Check that year is valid at https://api.census.gov/data.html."
             )
         df = pd.DataFrame.from_dict(reqst.content["fips"])
-        if GEOM_MAP[geom] not in df["geoLevelDisplay"].tolist():  # check that geom is supported globally
+        if GEOM_ID_MAP[geom] not in df["geoLevelDisplay"].tolist():  # check that geom is supported globally
             raise ValueError(f"Geom {geom} not supported for {ds}-{sub_ds}-{year}")
         df_geom = df.loc[df["geoLevelDisplay"] == geom].squeeze()
         if df_geom.isna()['optionalWithWCFor']:

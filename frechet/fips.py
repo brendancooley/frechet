@@ -1,13 +1,15 @@
 from functools import lru_cache
+from re import sub
 from typing import *
 from dataclasses import dataclass
 import pandas as pd
 import geopandas as gpd
+import requests
 
 from frechet.url import STATES
 from frechet.tiger import load_shp
 from frechet.geom import GEOM, PARENT
-from frechet.census import CENSUS_DS, validate_ds, validate_vars, validate_geom
+from frechet.census import CENSUS_DS, validate_ds, validate_vars, validate_geom, construct_request_url
 from frechet.settings import CENSUS_API_KEY
 
 QUERY_MODE = Literal["name", "abbr", "fips"]
@@ -65,6 +67,8 @@ def _census(
     year: int,
     vars: List[str],
     parent: PARENT,
+    st_fips: str,
+    co_fips: Optional[str] = None,
     census_api_key: Optional[str] = None,
 ) -> pd.DataFrame:
     if census_api_key is None and CENSUS_API_KEY is None:
@@ -76,6 +80,12 @@ def _census(
     validate_ds(ds=ds, sub_ds=sub_ds)
     validate_vars(ds=ds, sub_ds=sub_ds, year=year, vars=vars)
     validate_geom(ds=ds, sub_ds=sub_ds, year=year, geom=geom, parent=parent)
+    request_url= construct_request_url(ds=ds, sub_ds=sub_ds, year=year, geom=geom, vars=vars, st_fips=st_fips, co_fips=co_fips, census_api_key=census_api_key)
+
+    blob_json = requests.get(request_url).json()
+    df = pd.DataFrame.from_dict(blob_json[1:])
+    df.columns = blob_json[0]
+    return df
 
 
 @dataclass
