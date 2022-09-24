@@ -2,6 +2,7 @@ from functools import lru_cache
 from re import sub
 from typing import *
 from dataclasses import dataclass
+from urllib import request
 import pandas as pd
 import geopandas as gpd
 import requests
@@ -81,7 +82,6 @@ def _census(
     validate_vars(ds=ds, sub_ds=sub_ds, year=year, vars=vars)
     validate_geom(ds=ds, sub_ds=sub_ds, year=year, geom=geom, parent=parent)
     request_url= construct_request_url(ds=ds, sub_ds=sub_ds, year=year, geom=geom, vars=vars, st_fips=st_fips, co_fips=co_fips, census_api_key=census_api_key)
-
     blob_json = requests.get(request_url).json()
     df = pd.DataFrame.from_dict(blob_json[1:])
     df.columns = blob_json[0]

@@ -1,4 +1,5 @@
 import requests
+import json
 
 import pandas as pd
 
@@ -44,9 +45,9 @@ def construct_request_url(
     if co_fips is None:
         st_co_str = f"in=state:{st_fips}"
     else:
-        st_co_str = f"in=state:{st_fips} county:{co_fips}"
+        st_co_str = f"in=state:{st_fips}&in=county:{co_fips}"
     key_str = f"key={census_api_key}"
-    return f"{address_base}get={vars_str}&for={GEOM_NAME_MAP[geom]}*&in={st_co_str}&{key_str}"
+    return f"{address_base}get={vars_str}&for={GEOM_NAME_MAP[geom]}:*&{st_co_str}&{key_str}"
 
 def validate_ds(ds: CENSUS_DS, sub_ds: str) -> bool:
     if ds not in CENSUS_DS_MAP.keys():
@@ -60,15 +61,15 @@ def validate_ds(ds: CENSUS_DS, sub_ds: str) -> bool:
 def validate_vars(
     ds: CENSUS_DS, sub_ds: str, year: int, vars: List[str]
 ) -> pd.DataFrame:
-    if validate_ds():
+    if validate_ds(ds=ds, sub_ds=sub_ds):
         reqst = requests.get(
-            "https://api.census.gov/data/{year}/{ds}/{sub_ds}/variables.json"
+            f"https://api.census.gov/data/{year}/{ds}/{sub_ds}/variables.json"
         )
         if reqst.status_code == 404:
             raise LookupError(
                 f"No variables found for dataset {ds}, sub dataset {sub_ds} in year {year}. Check that year is valid at https://api.census.gov/data.html."
             )
-        df = pd.DataFrame.from_dict(reqst.content["variables"], orient="index")[
+        df = pd.DataFrame.from_dict(json.loads(reqst.content)["variables"], orient="index")[
             ["label", "concept"]
         ].sort_index()
         df = df.loc[~df.index.isin(["for", "in", "ucgid"])]
@@ -85,18 +86,18 @@ def validate_vars(
 
 
 def validate_geom(ds: CENSUS_DS, sub_ds: str, year: int, parent: PARENT, geom: GEOM) -> pd.DataFrame:
-    if validate_ds():
+    if validate_ds(ds=ds, sub_ds=sub_ds):
         reqst = requests.get(
-            "https://api.census.gov/data/{year}/{ds}/{sub_ds}/geography.json"
+            f"https://api.census.gov/data/{year}/{ds}/{sub_ds}/geography.json"
         )
         if reqst.status_code == 404:
             raise LookupError(
                 f"No variables found for dataset {ds}, sub dataset {sub_ds} in year {year}. Check that year is valid at https://api.census.gov/data.html."
             )
-        df = pd.DataFrame.from_dict(reqst.content["fips"])
+        df = pd.DataFrame.from_dict(json.loads(reqst.content)["fips"])
         if GEOM_ID_MAP[geom] not in df["geoLevelDisplay"].tolist():  # check that geom is supported globally
             raise ValueError(f"Geom {geom} not supported for {ds}-{sub_ds}-{year}")
-        df_geom = df.loc[df["geoLevelDisplay"] == geom].squeeze()
+        df_geom = df.loc[df["geoLevelDisplay"] == GEOM_ID_MAP[geom]].squeeze()
         if df_geom.isna()['optionalWithWCFor']:
             req = df_geom['requires']
         else:
