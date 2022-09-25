@@ -9,7 +9,7 @@ import requests
 
 from frechet.url import STATES
 from frechet.tiger import load_shp
-from frechet.geom import GEOM, PARENT
+from frechet.geom import GEOGRAPHY, PARENT
 from frechet.census import CENSUS_DS, validate_ds, validate_vars, validate_geom, construct_request_url
 from frechet.settings import CENSUS_API_KEY
 
@@ -64,7 +64,7 @@ def _build_state(mode: QUERY_MODE, name: str):
 def _census(
     ds: CENSUS_DS,
     sub_ds: str,
-    geom: GEOM,
+    geom: GEOGRAPHY,
     year: int,
     vars: List[str],
     parent: PARENT,
@@ -161,7 +161,7 @@ class State:
         return self.county_df["co_name"].tolist()
 
     def shp(
-        self, geom: GEOM, year: int, cache: bool = False, cb: bool = False
+        self, geom: GEOGRAPHY, year: int, cache: bool = False, cb: bool = False
     ) -> gpd.GeoDataFrame:
         """
         returns the state's cartographic boundary files for the geom-year
@@ -224,7 +224,7 @@ class County:
             )
 
     def shp(
-        self, geom: GEOM, year: int, cache: bool = False, cb: bool = False
+        self, geom: GEOGRAPHY, year: int, cache: bool = False, cb: bool = False
     ) -> gpd.GeoDataFrame:
         """
         returns the county's cartographic boundary files for the geom-year

@@ -6,13 +6,13 @@ import shutil
 
 import geopandas as gpd
 
-from frechet.geom import GEOM
+from frechet.geom import GEOGRAPHY
 from frechet.url import TIGER_BASE
 from frechet.util import unzip_to_tmp, cache_result_dir, RESULT_DIR
 from frechet.settings import FRECHET_CACHE_DIR
 
 
-GEOM_MAP: Dict[GEOM, str] = {
+GEOM_MAP: Dict[GEOGRAPHY, str] = {
     "tracts": "tract",
     "block_groups": "bg",
     "county_sub": "cousub",
@@ -29,7 +29,7 @@ class CBUnavailable(Exception):
     ...
 
 
-def load_shp(year: int, st_fips: str, geom: GEOM, cache: bool = False, cb: bool = False):
+def load_shp(year: int, st_fips: str, geom: GEOGRAPHY, cache: bool = False, cb: bool = False):
     """
     Load cartographic boundary files for st-geom-year. If cache=True, save the results to FRECHET_CACHE_DIR.
 
@@ -73,7 +73,7 @@ def _load_tiger(path: str) -> gpd.GeoDataFrame:
     return gdf
 
 
-def _fpath(year: int, st_fips: str, geom: GEOM, cb: bool) -> Tuple[str, str]:
+def _fpath(year: int, st_fips: str, geom: GEOGRAPHY, cb: bool) -> Tuple[str, str]:
     if cb:
         subpath = f"GENZ{year}/shp/cb_{year}_{st_fips}_{GEOM_MAP[geom]}_500k"
         fname = f"cb_{year}_{st_fips}_{GEOM_MAP[geom]}_500k.shp"
@@ -89,7 +89,7 @@ def _fpath(year: int, st_fips: str, geom: GEOM, cb: bool) -> Tuple[str, str]:
     return subpath, fname
 
 
-def _validate_cb(geom: GEOM, cb: bool):
+def _validate_cb(geom: GEOGRAPHY, cb: bool):
     if not cb:
         return True
     else:
