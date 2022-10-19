@@ -29,6 +29,8 @@ class CBUnavailable(Exception):
     ...
 
 
+# TODO move tiger stuff onto rest API
+# https://github.com/nkrishnaswami/uscensus/blob/master/GetCountyShapes.ipynb
 def load_shp(year: int, st_fips: str, geom: GEOGRAPHY, cache: bool = False, cb: bool = False):
     """
     Load cartographic boundary files for st-geom-year. If cache=True, save the results to FRECHET_CACHE_DIR.
